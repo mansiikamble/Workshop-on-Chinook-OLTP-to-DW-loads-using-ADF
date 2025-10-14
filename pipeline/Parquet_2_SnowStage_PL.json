@@ -1,0 +1,86 @@
+{
+	"name": "Parquet_2_SnowStage_PL",
+	"properties": {
+		"activities": [
+			{
+				"name": "ForEachTable",
+				"type": "ForEach",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.table_name",
+						"type": "Expression"
+					},
+					"batchCount": 2,
+					"activities": [
+						{
+							"name": "Transform",
+							"type": "ExecuteDataFlow",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.00:10:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataflow": {
+									"referenceName": "Transform",
+									"type": "DataFlowReference",
+									"datasetParameters": {
+										"TransformParquet": {
+											"container_name": "stagedata",
+											"folder_name": {
+												"value": "@pipeline().parameters.folder_name",
+												"type": "Expression"
+											},
+											"file_name": {
+												"value": "@concat(\n    item(),\n    '.parquet'\n)",
+												"type": "Expression"
+											}
+										},
+										"SnowflakeUpdatedColumns": {
+											"schema_name": "STAGE",
+											"table_name": {
+												"value": "@toUpper(item())",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								"compute": {
+									"coreCount": 8,
+									"computeType": "General"
+								},
+								"traceLevel": "Fine"
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"folder_name": {
+				"type": "string",
+				"defaultValue": "chinook"
+			},
+			"table_name": {
+				"type": "array",
+				"defaultValue": [
+					"Customer",
+					"Artist",
+					"Album",
+					"Genre",
+					"Invoice",
+					"Invoiceline"
+				]
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2025-10-14T19:44:47Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

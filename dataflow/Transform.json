@@ -1,0 +1,49 @@
+{
+	"name": "Transform",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "Parquet_ds",
+						"type": "DatasetReference"
+					},
+					"name": "TransformParquet"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "SnowChinookDs",
+						"type": "DatasetReference"
+					},
+					"name": "SnowflakeUpdatedColumns"
+				}
+			],
+			"transformations": [
+				{
+					"name": "AddColumns"
+				}
+			],
+			"scriptLines": [
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet') ~> TransformParquet",
+				"TransformParquet derive(Created_By = 'ADF_PIPELINE',",
+				"          Created_Dt = currentDate()) ~> AddColumns",
+				"AddColumns sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     stageInsert: true) ~> SnowflakeUpdatedColumns"
+			]
+		}
+	}
+}

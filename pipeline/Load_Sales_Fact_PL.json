@@ -1,0 +1,66 @@
+{
+	"name": "Load_Sales_Fact_PL",
+	"properties": {
+		"activities": [
+			{
+				"name": "LoadSalesFact",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SnowflakeV2Source",
+						"query": "WITH aggsales AS (\r\n    SELECT \r\n        cd.CUSTOMER_KEY,\r\n        i.\"InvoiceId\" AS INVOICE_ID,\r\n        i.\"InvoiceDate\" AS SALE_DATE,\r\n        SUM(il.\"Quantity\" * il.\"UnitPrice\") AS TOTAL_SALE_AMT\r\n    FROM STAGE.INVOICE i\r\n    JOIN STAGE.INVOICELINE il ON i.\"InvoiceId\" = il.\"InvoiceId\"\r\n    JOIN DW.CUSTOMER_DIM cd ON cd.CUSTOMER_ID = i.\"CustomerId\"\r\n    GROUP BY \r\n        i.\"InvoiceId\",\r\n        cd.CUSTOMER_KEY,\r\n        i.\"InvoiceDate\"\r\n)\r\nSELECT \r\n    ROW_NUMBER() OVER (ORDER BY INVOICE_ID) AS SALES_KEY,\r\n    CUSTOMER_KEY,\r\n    INVOICE_ID,\r\n    -- SALE_DATE,\r\n    dd.DATE_KEY AS DATE_DIM_KEY,\r\n    td.TIME_KEY AS TIME_DIM_KEY,\r\n    TOTAL_SALE_AMT,\r\n    'ADF_PIPELINE' AS SOURCE_ID,\r\n    CURRENT_TIMESTAMP() AS DATE_TO_WAREHOUSE\r\nFROM aggsales a\r\nJOIN DW.DATE_DIM dd ON dd.FULL_DATE = DATE(a.SALE_DATE)\r\nJOIN DW.TIME_DIM td ON td.TIME_24_HR = TO_CHAR(a.SALE_DATE, 'HH24:MI')\r\nWHERE NOT EXISTS (\r\n    SELECT 1\r\n    FROM DW.SALES_FACT sf\r\n    WHERE sf.INVOICE_ID = a.INVOICE_ID\r\n)",
+						"exportSettings": {
+							"type": "SnowflakeExportCopyCommand"
+						}
+					},
+					"sink": {
+						"type": "SnowflakeV2Sink",
+						"importSettings": {
+							"type": "SnowflakeImportCopyCommand"
+						}
+					},
+					"enableStaging": true,
+					"stagingSettings": {
+						"linkedServiceName": {
+							"referenceName": "ls_storage_sas_auth",
+							"type": "LinkedServiceReference"
+						},
+						"path": "stagedata/chinook"
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "SnowChinookDs",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema_name": "STAGE",
+							"table_name": "INVOICE"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "SnowChinookDs",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema_name": "DW",
+							"table_name": "SALES_FACT"
+						}
+					}
+				]
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2025-10-14T21:39:02Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}
